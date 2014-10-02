@@ -16,17 +16,6 @@ import Network.HTTP.Conduit
 import System.Environment
 
 
-
-{-
-login :: String -> Manager
-login = withManager $ \manager -> do
-       resp <- httpLbs ( ( applyBasicAuth "chaospie" "zantetsuken" ) . fromJust $ req ) manager
-       return manager
-       where req = parseUrl "http://192.168.11.15/httpAuth/app/rest/"
-
-
-       liftM (Prelude.filter (\c -> cookie_name c == "TCSESSIONID") . destroyCookieJar )$ (getRoot req' >>= \r -> return $ responseCookieJar r)
--}
 --------------------------------------------------------------------------------
 -- Request
 --------------------------------------------------------------------------------
