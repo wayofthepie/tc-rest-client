@@ -1,4 +1,7 @@
-{-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Client where
 
@@ -18,7 +21,7 @@ import Data.ByteString.Lazy.Char8 hiding (filter)
 
 import qualified Data.ByteString.Char8 as BC
 import Data.Maybe
-import Data.Text
+import Data.Text as T
 import Network.HTTP.Conduit
 import System.Environment
 
@@ -29,16 +32,16 @@ import System.Environment
 
 data APIRequest  =
     APIRequestPost {
-        _endpoint :: String
+        _endpoint :: Text
     }
     | APIRequestGet {
-        _endpoint :: String
+        _endpoint :: Text
     }
     | APIRequestPut  {
-        _endpoint :: String
+        _endpoint :: Text
     }
     | APIRequestDelete {
-        _endpoint :: String
+        _endpoint :: Text
     }
 
 
@@ -59,9 +62,9 @@ makeRequest (APIRequestDelete endpoint) = requestBuilder endpoint deleteReq
 
 -- | Build a request with basic authentication.
 requestBuilder ::
-    ( MonadIO m, MonadThrow m ) => String -> (Request -> Request) -> m Request
+    ( MonadIO m, MonadThrow m ) => Text -> (Request -> Request) -> m Request
 requestBuilder endpoint httpMethod = apibase >>=
-        \url -> ( parseUrl $ url ++ endpoint ) >>=
+        \url -> ( parseUrl $ url ++ ( T.unpack endpoint ) ) >>=
             addBasicAuth . acceptJson . httpMethod
 
     where addBasicAuth :: MonadIO m => Request -> m Request
@@ -74,7 +77,8 @@ requestBuilder endpoint httpMethod = apibase >>=
 --------------------------------------------------------------------------------
 -- Response
 --------------------------------------------------------------------------------
-
+class Reference a b where
+    follow :: ( MonadIO m, MonadThrow m, MonadBaseControl IO m ) => a -> m (Either String b)
 
 -- | Reference to the parent project
 data ParentProjectRef = ParentProjectRef {
@@ -93,6 +97,9 @@ instance FromJSON ParentProjectRef where
                          <*> v .: "href"
                          <*> v .: "webUrl"
 
+instance Reference ParentProjectRef Project where
+    follow ppr = liftM ( eitherDecode . responseBody ) $
+        makeRequest (APIRequestGet $ _pprHref ppr) >>= getResponse
 
 
 -- | Information on build types
@@ -249,8 +256,8 @@ getResponse req = withManager $ \manager -> do
 -- | Some hacking around....
 projects ::
     ( MonadIO m, MonadThrow m, MonadBaseControl IO m ) => m ( Maybe Array )
-projects = liftM ( (\x -> x ^? key "project" . _Array) . responseBody ) $
-        makeRequest (APIRequestGet "projects") >>= getResponse
+projects = liftM ( (\x -> x ^? key "/httpAuth/app/rest/project" . _Array) . responseBody ) $
+        makeRequest (APIRequestGet "/httpAuth/app/rest/projects") >>= getResponse
 
 project :: ( MonadIO m, MonadThrow m, MonadBaseControl IO m ) =>
     Value -> m ( Maybe Object )
@@ -273,7 +280,7 @@ tcCredentials = liftIO $ do
 
 
 apibase :: MonadIO m => m String
-apibase = liftM (++ apiUrl) $ baseUrl
+apibase = baseUrl
     where
         -- Base url for all API calls.
         -- Assumes http. Retrieves the hostname (or IP address)
