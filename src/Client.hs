@@ -2,16 +2,23 @@
 
 module Client where
 
+import Control.Applicative
+import Control.Lens.Combinators
+import Control.Lens.Operators
 import Control.Monad
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Control (MonadBaseControl)
+
+import Data.Aeson
+import Data.Aeson.Lens
 
 -- applyBasicAuth expects a strict ByteString
 import Data.ByteString.Lazy.Char8 hiding (filter)
 
 import qualified Data.ByteString.Char8 as BC
 import Data.Maybe
+import Data.Text
 import Network.HTTP.Conduit
 import System.Environment
 
@@ -68,12 +75,187 @@ requestBuilder endpoint httpMethod = apibase >>=
 -- Response
 --------------------------------------------------------------------------------
 
+
+-- | Reference to the parent project
+data ParentProjectRef = ParentProjectRef {
+        _pprId          :: Text,
+        _pprName        :: Text,
+        _pprDescription :: Maybe Text,
+        _pprHref        :: Text,
+        _pprWebUrl      :: Text
+    } deriving (Eq, Show)
+
+instance FromJSON ParentProjectRef where
+    parseJSON (Object v) =
+        ParentProjectRef <$> v .: "id"
+                         <*> v .: "name"
+                         <*> v .:? "description"
+                         <*> v .: "href"
+                         <*> v .: "webUrl"
+
+
+
+-- | Information on build types
+data BuildTypes = BuildTypes {
+        _bTypesCount    :: Int,
+        _bTypes         :: [BuildTypeRef]
+    } deriving (Eq, Show)
+
+instance FromJSON BuildTypes where
+    parseJSON (Object v) =
+        BuildTypes <$> v .: "count"
+                   <*> v .: "buildType"
+
+
+
+data Templates = Templates {
+        _templatesCount     :: Int,
+        _templatesBuildTypes:: [BuildTypeRef]
+    } deriving (Eq, Show)
+
+instance FromJSON Templates where
+    parseJSON (Object v) =
+        Templates <$> v .: "count"
+                  <*> v .: "buildType"
+
+
+
+-- | Reference to a build type
+data BuildTypeRef = BuildTypeRef {
+        _bTypeRefId         :: Text,
+        _bTypeRefName       :: Text,
+        _bTypeRefProjectName:: Text,
+        _bTypeRefProjectId  :: Text,
+        _bTypeRefHref       :: Text,
+        _bTypeRefWebUrl     :: Text
+    } deriving (Eq, Show)
+
+instance FromJSON BuildTypeRef where
+    parseJSON (Object v) =
+        BuildTypeRef <$> v .: "id"
+                     <*> v .: "name"
+                     <*> v .: "projectName"
+                     <*> v .: "projectId"
+                     <*> v .: "href"
+                     <*> v .: "webUrl"
+
+
+-- | Reference to a parameter
+data ParametersRef = ParametersRef {
+        _paramsRefCount      :: Int,
+        _paramsRefHref       :: Text,
+        _paramsRefProperties :: [Property]
+    } deriving (Eq, Show)
+
+instance FromJSON ParametersRef where
+    parseJSON (Object v) =
+        ParametersRef <$> v .: "count"
+                      <*> v .: "href"
+                      <*> v .: "property"
+
+
+
+-- | A build property
+data Property = Property {
+        _propName   :: Text,
+        _propValue  :: Text,
+        _propOwn    :: Maybe Bool
+    } deriving (Eq, Show)
+
+instance FromJSON Property where
+    parseJSON (Object v) =
+        Property <$> v .: "name"
+                 <*> v .: "value"
+                 <*> v .:? "own"
+
+
+
+-- | Reference to the vcs roots
+data VcsRootsRef = VcsRootsRef {
+        _vcsRootsRefHref    :: Text
+    } deriving (Eq, Show)
+
+instance FromJSON VcsRootsRef where
+    parseJSON (Object v) =
+        VcsRootsRef <$> v .: "href"
+
+
+
+data SubProjectRefs = SubProjectRefs {
+        _subProjectsCount   :: Int,
+        _subProjectsRefs    :: Maybe [ProjectRef]
+    } deriving (Eq, Show)
+
+instance FromJSON SubProjectRefs where
+    parseJSON (Object v) =
+        SubProjectRefs <$> v .: "count"
+                    <*> v .:? "project"
+
+
+data ProjectRef = ProjectRef {
+        _projectRefId       :: Text,
+        _projectRefName     :: Text,
+        _projectRefParentId :: Text,
+        _projectRefHref     :: Text,
+        _projectRefWebUrl   :: Text
+    } deriving (Eq, Show)
+
+instance FromJSON ProjectRef where
+    parseJSON (Object v) =
+        ProjectRef <$> v .: "id"
+                   <*> v .: "name"
+                   <*> v .: "parentProjectId"
+                   <*> v .: "href"
+                   <*> v .: "webUrl"
+
+data Project = Project {
+        _projectid              :: Text,
+        _projectName            :: Text,
+        _projectParentId        :: Text,
+        _projectDesc            :: Maybe Text,
+        _projectHref            :: Text,
+        _projectWebUrl          :: Text,
+        _projectParentRef       :: ParentProjectRef,
+        _projectBuildConfigs    :: BuildTypes,
+        _projectTemplates       :: Templates,
+        _projectParams          :: ParametersRef,
+        _projectVcsRoots        :: VcsRootsRef,
+        _projectSubProjectRefs  :: SubProjectRefs
+    } deriving (Eq, Show)
+
+instance FromJSON Project where
+   parseJSON (Object v) =
+       Project <$> v .: "id"
+               <*> v .: "name"
+               <*> v .: "parentProjectId"
+               <*> v .:? "description"
+               <*> v .: "href"
+               <*> v .: "webUrl"
+               <*> v .: "parentProject"
+               <*> v .: "buildTypes"
+               <*> v .: "templates"
+               <*> v .: "parameters"
+               <*> v .: "vcsRoots"
+               <*> v .: "projects"
+
+
 -- | Run a request.
 getResponse ::
     ( MonadIO m, MonadBaseControl IO m ) => Request -> m ( Response ByteString )
 getResponse req = withManager $ \manager -> do
-    resp <-  httpLbs req manager
+    resp <- httpLbs req manager
     return resp
+
+-- | Some hacking around....
+projects ::
+    ( MonadIO m, MonadThrow m, MonadBaseControl IO m ) => m ( Maybe Array )
+projects = liftM ( (\x -> x ^? key "project" . _Array) . responseBody ) $
+        makeRequest (APIRequestGet "projects") >>= getResponse
+
+project :: ( MonadIO m, MonadThrow m, MonadBaseControl IO m ) =>
+    Value -> m ( Maybe Object )
+project projectUrl = liftM (\x -> fromJust x ^? ix 0 . _Object) projects
+
 
 --------------------------------------------------------------------------------
 -- Configuration

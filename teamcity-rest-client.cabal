@@ -16,13 +16,17 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Client
+  exposed-modules:      Client
   -- other-modules:
   -- other-extensions:
   build-depends:        base >=4.7 && <4.8,
+                        aeson,
                         bytestring,
+                        text,
                         exceptions,
                         http-conduit,
+                        lens,
+                        lens-aeson,
                         monad-control,
                         transformers
   hs-source-dirs:       src
