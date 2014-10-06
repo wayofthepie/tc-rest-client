@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -12,16 +13,14 @@ import Control.Monad
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Control (MonadBaseControl)
-
 import Data.Aeson
 import Data.Aeson.Lens
-
 -- applyBasicAuth expects a strict ByteString
 import Data.ByteString.Lazy.Char8 hiding (filter)
-
 import qualified Data.ByteString.Char8 as BC
 import Data.Maybe
 import Data.Text as T
+import GHC.Generics
 import Network.HTTP.Conduit
 import System.Environment
 
@@ -77,8 +76,11 @@ requestBuilder endpoint httpMethod = apibase >>=
 --------------------------------------------------------------------------------
 -- Response
 --------------------------------------------------------------------------------
+
 class Reference a b where
-    follow :: ( MonadIO m, MonadThrow m, MonadBaseControl IO m ) => a -> m (Either String b)
+    follow :: ( MonadIO m, MonadThrow m, MonadBaseControl IO m ) =>
+        a -> m (Either String b)
+
 
 -- | Reference to the parent project
 data ParentProjectRef = ParentProjectRef {
@@ -87,64 +89,46 @@ data ParentProjectRef = ParentProjectRef {
         _pprDescription :: Maybe Text,
         _pprHref        :: Text,
         _pprWebUrl      :: Text
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generic)
 
-instance FromJSON ParentProjectRef where
-    parseJSON (Object v) =
-        ParentProjectRef <$> v .: "id"
-                         <*> v .: "name"
-                         <*> v .:? "description"
-                         <*> v .: "href"
-                         <*> v .: "webUrl"
+instance FromJSON ParentProjectRef
 
 instance Reference ParentProjectRef Project where
     follow ppr = liftM ( eitherDecode . responseBody ) $
         makeRequest (APIRequestGet $ _pprHref ppr) >>= getResponse
 
 
--- | Information on build types
-data BuildTypes = BuildTypes {
-        _bTypesCount    :: Int,
-        _bTypes         :: [BuildTypeRef]
-    } deriving (Eq, Show)
 
-instance FromJSON BuildTypes where
-    parseJSON (Object v) =
-        BuildTypes <$> v .: "count"
-                   <*> v .: "buildType"
+-- | Information on build types
+data BuildConfigs = BuildConfigs {
+        _bTypesCount    :: Int,
+        _bTypes         :: [BuildConfigRef]
+    } deriving (Eq, Show, Generic)
+
+instance FromJSON BuildConfigs
 
 
 
 data Templates = Templates {
         _templatesCount     :: Int,
-        _templatesBuildTypes:: [BuildTypeRef]
-    } deriving (Eq, Show)
+        _templatesBuildConfigs:: [BuildConfigRef]
+    } deriving (Eq, Show, Generic)
 
-instance FromJSON Templates where
-    parseJSON (Object v) =
-        Templates <$> v .: "count"
-                  <*> v .: "buildType"
-
+instance FromJSON Templates
 
 
 -- | Reference to a build type
-data BuildTypeRef = BuildTypeRef {
+data BuildConfigRef = BuildConfigRef {
         _bTypeRefId         :: Text,
         _bTypeRefName       :: Text,
         _bTypeRefProjectName:: Text,
         _bTypeRefProjectId  :: Text,
         _bTypeRefHref       :: Text,
         _bTypeRefWebUrl     :: Text
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generic)
 
-instance FromJSON BuildTypeRef where
-    parseJSON (Object v) =
-        BuildTypeRef <$> v .: "id"
-                     <*> v .: "name"
-                     <*> v .: "projectName"
-                     <*> v .: "projectId"
-                     <*> v .: "href"
-                     <*> v .: "webUrl"
+instance FromJSON BuildConfigRef
+
 
 
 -- | Reference to a parameter
@@ -152,13 +136,9 @@ data ParametersRef = ParametersRef {
         _paramsRefCount      :: Int,
         _paramsRefHref       :: Text,
         _paramsRefProperties :: [Property]
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generic)
 
-instance FromJSON ParametersRef where
-    parseJSON (Object v) =
-        ParametersRef <$> v .: "count"
-                      <*> v .: "href"
-                      <*> v .: "property"
+instance FromJSON ParametersRef
 
 
 
@@ -167,36 +147,26 @@ data Property = Property {
         _propName   :: Text,
         _propValue  :: Text,
         _propOwn    :: Maybe Bool
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generic)
 
-instance FromJSON Property where
-    parseJSON (Object v) =
-        Property <$> v .: "name"
-                 <*> v .: "value"
-                 <*> v .:? "own"
-
+instance FromJSON Property
 
 
 -- | Reference to the vcs roots
 data VcsRootsRef = VcsRootsRef {
         _vcsRootsRefHref    :: Text
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generic)
 
-instance FromJSON VcsRootsRef where
-    parseJSON (Object v) =
-        VcsRootsRef <$> v .: "href"
+instance FromJSON VcsRootsRef
 
 
 
 data SubProjectRefs = SubProjectRefs {
         _subProjectsCount   :: Int,
         _subProjectsRefs    :: Maybe [ProjectRef]
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generic)
 
-instance FromJSON SubProjectRefs where
-    parseJSON (Object v) =
-        SubProjectRefs <$> v .: "count"
-                    <*> v .:? "project"
+instance FromJSON SubProjectRefs
 
 
 data ProjectRef = ProjectRef {
@@ -205,16 +175,12 @@ data ProjectRef = ProjectRef {
         _projectRefParentId :: Text,
         _projectRefHref     :: Text,
         _projectRefWebUrl   :: Text
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generic)
 
-instance FromJSON ProjectRef where
-    parseJSON (Object v) =
-        ProjectRef <$> v .: "id"
-                   <*> v .: "name"
-                   <*> v .: "parentProjectId"
-                   <*> v .: "href"
-                   <*> v .: "webUrl"
+instance FromJSON ProjectRef
 
+
+-- | A project
 data Project = Project {
         _projectid              :: Text,
         _projectName            :: Text,
@@ -223,27 +189,42 @@ data Project = Project {
         _projectHref            :: Text,
         _projectWebUrl          :: Text,
         _projectParentRef       :: ParentProjectRef,
-        _projectBuildConfigs    :: BuildTypes,
+        _projectBuildConfigs    :: BuildConfigs,
         _projectTemplates       :: Templates,
         _projectParams          :: ParametersRef,
         _projectVcsRoots        :: VcsRootsRef,
         _projectSubProjectRefs  :: SubProjectRefs
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generic)
 
-instance FromJSON Project where
-   parseJSON (Object v) =
-       Project <$> v .: "id"
-               <*> v .: "name"
-               <*> v .: "parentProjectId"
-               <*> v .:? "description"
-               <*> v .: "href"
-               <*> v .: "webUrl"
-               <*> v .: "parentProject"
-               <*> v .: "buildTypes"
-               <*> v .: "templates"
-               <*> v .: "parameters"
-               <*> v .: "vcsRoots"
-               <*> v .: "projects"
+instance FromJSON Project
+
+
+
+data BuildConfig = BuildConfig {
+       _buildConfigId           :: Text,
+       _buildConfigTypeId       :: Text,
+       _buildConfigNumber       :: Int,
+       _buildConfigStatus       :: Text,
+       _buildConfigState        :: Text,
+       _buildConfigHref         :: Text,
+       _buildConfigWebUrl       :: Text,
+       _buildConfigStatusText   :: Text,
+       _buildConfigBuildRef     :: BuildConfigRef, -- Self reference
+       _buildConfigTags         :: Maybe Object,
+       _buildConfigQueuedDate   :: Text, -- Should parse this to a proper type
+       _buildConfigStartDate    :: Text, -- Should parse this to a proper type
+       _buildConfigFinishDate   :: Text, -- Should parse this to a proper type
+       _buildConfigTriggered    :: Maybe Object,-- BuildTriggeredInfo
+       _buildConfigLastChanges  :: Maybe Object, -- ???
+       _buildConfigChanges      :: Maybe Object, -- ???
+       _buildConfigRevisions    :: Maybe Object, -- ???
+       _buildConfigAgent        :: Maybe Object, -- BuildAgentRef
+       _buildConfigArtifacts    :: Maybe Object, -- BuildArtifactsRef
+       _buildConfigRelatedIssues:: Maybe Object,
+       _buildConfigStatistics   :: Maybe Object
+    } deriving (Eq, Show, Generic)
+
+instance FromJSON BuildConfig
 
 
 -- | Run a request.
