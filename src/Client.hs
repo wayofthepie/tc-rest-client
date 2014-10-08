@@ -102,7 +102,8 @@ instance Reference ProjectRef ( Either String Project ) where
 instance Reference SubProjectRefs [Either String Project] where
     follow spr
         | _subProjectRefs spr == Nothing = return []
-        | otherwise = mapM (\r -> follow' _projectRefHref r) $ fromJust subProjRefs
+        | otherwise = mapM (\r -> follow' _projectRefHref r) $
+            fromMaybe [] subProjRefs
         where
             subProjRefs :: Maybe [ProjectRef]
             subProjRefs = _subProjectRefs spr
