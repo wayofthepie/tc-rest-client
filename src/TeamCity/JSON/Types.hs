@@ -50,12 +50,12 @@ instance FromJSON Templates where
 
 -- | Reference to a build type
 data BuildRunRef = BuildRunRef {
-        _bTypeRefId         :: Text,
-        _bTypeRefName       :: Text,
-        _bTypeRefProjectName:: Text,
-        _bTypeRefProjectId  :: Text,
-        _bTypeRefHref       :: Text,
-        _bTypeRefWebUrl     :: Text
+        _buildRunRefId         :: Text,
+        _buildRunRefName       :: Text,
+        _buildRunRefProjectName:: Text,
+        _buildRunRefProjectId  :: Text,
+        _buildRunRefHref       :: Text,
+        _buildRunRefWebUrl     :: Text
     } deriving (Eq, Show)
 
 instance FromJSON BuildRunRef where
@@ -83,7 +83,7 @@ instance FromJSON ParametersRef where
                       <*> v .: "href"
                       <*> v .: "property"
 
-
+type Parameters = [Property]
 
 -- | A build property
 data Property = Property {
@@ -109,11 +109,31 @@ instance FromJSON VcsRootsRef where
     parseJSON (Object v) =
         VcsRootsRef <$> v .: "href"
 
+data VcsRoots = VcsRoots {
+       _vcsRootsId  :: Text,
+       _vcsRoots    :: [VcsRoot] 
+    } deriving (Eq, Show)
 
+instance FromJSON VcsRoots where
+    parseJSON (Object v) =
+        VcsRoots <$> v .: "id"
+                 <*> v .: "vcs-root"
+
+data VcsRoot = VcsRoot {
+        _vcsRootId  :: Text,
+        _vcsRootName:: Text,
+        _vcsRootHref:: Text
+    } deriving (Eq, Show)
+
+instance FromJSON VcsRoot where
+    parseJSON (Object v) =
+        VcsRoot <$> v .: "id"
+                <*> v .: "name"
+                <*> v .: "href"
 
 data SubProjectRefs = SubProjectRefs {
-        _subProjectsCount   :: Int,
-        _subProjectsRefs    :: Maybe [ProjectRef]
+        _subProjectCount   :: Int,
+        _subProjectRefs    :: Maybe [ProjectRef]
     } deriving (Eq, Show)
 
 instance FromJSON SubProjectRefs where
