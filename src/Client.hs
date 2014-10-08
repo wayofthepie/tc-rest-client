@@ -108,6 +108,8 @@ instance Reference SubProjectRefs [Either String Project] where
             subProjRefs :: Maybe [ProjectRef]
             subProjRefs = _subProjectRefs spr
 
+
+
 -- | Apply __f__ to __ref__ and request
 follow' :: ( MonadBaseControl IO m, MonadIO m, MonadThrow m, FromJSON b ) =>
     ( a -> Text ) -> a -> m (Either String b)
@@ -138,16 +140,10 @@ tcCredentials = liftIO $ do
     pass <- getEnv "TEAMCITY_PASSWORD"
     return $ (user, pass)
 
-
+-- Base url for all API calls.
+-- Assumes http. Retrieves the hostname (or IP address)
+-- from an environment variable called "TEAMCITY_HOST".
 apibase :: MonadIO m => m String
-apibase = baseUrl
-    where
-        -- Base url for all API calls.
-        -- Assumes http. Retrieves the hostname (or IP address)
-        -- from an environment variable called "TEAMCITY_HOST".
-        baseUrl :: MonadIO m => m String
-        baseUrl =  liftIO $ liftM ("http://" ++ ) $ getEnv "TEAMCITY_HOST"
+apibase =  liftIO $ liftM ("http://" ++ ) $ getEnv "TEAMCITY_HOST"
         -- Hard code this for now
-        apiUrl :: String
-        apiUrl = "/httpAuth/app/rest/"
 
