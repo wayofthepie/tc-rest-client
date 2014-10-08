@@ -6,6 +6,10 @@ import Data.Aeson
 import Data.Maybe
 import Data.Text as T
 
+
+-------------------------------------------------------------------------------
+-- Project
+-------------------------------------------------------------------------------
 -- | Reference to the parent project
 data ParentProjectRef = ParentProjectRef {
         _pprId          :: Text,
@@ -23,113 +27,7 @@ instance FromJSON ParentProjectRef where
                          <*> v .: "href"
                          <*> v .: "webUrl"
 
--- | Information on build types
-data BuildRuns = BuildRuns {
-        _bTypesCount    :: Int,
-        _bTypes         :: [BuildRunRef]
-    } deriving (Eq, Show)
 
-instance FromJSON BuildRuns where
-    parseJSON (Object v) =
-        BuildRuns <$> v .: "count"
-                   <*> v .: "buildType"
-
-
-
-data Templates = Templates {
-        _templatesCount     :: Int,
-        _templatesBuildRuns:: [BuildRunRef]
-    } deriving (Eq, Show)
-
-instance FromJSON Templates where
-    parseJSON (Object v) =
-        Templates <$> v .: "count"
-                  <*> v .: "buildType"
-
-
-
--- | Reference to a build type
-data BuildRunRef = BuildRunRef {
-        _buildRunRefId         :: Text,
-        _buildRunRefName       :: Text,
-        _buildRunRefProjectName:: Text,
-        _buildRunRefProjectId  :: Text,
-        _buildRunRefHref       :: Text,
-        _buildRunRefWebUrl     :: Text
-    } deriving (Eq, Show)
-
-instance FromJSON BuildRunRef where
-    parseJSON (Object v) =
-        BuildRunRef <$> v .: "id"
-                     <*> v .: "name"
-                     <*> v .: "projectName"
-                     <*> v .: "projectId"
-                     <*> v .: "href"
-                     <*> v .: "webUrl"
-
---instance Reference BuildRunRef BuildRun where
-
-
--- | Reference to a parameter
-data ParametersRef = ParametersRef {
-        _paramsRefCount      :: Int,
-        _paramsRefHref       :: Text,
-        _paramsRefProperties :: [Property]
-    } deriving (Eq, Show)
-
-instance FromJSON ParametersRef where
-    parseJSON (Object v) =
-        ParametersRef <$> v .: "count"
-                      <*> v .: "href"
-                      <*> v .: "property"
-
-type Parameters = [Property]
-
--- | A build property
-data Property = Property {
-        _propName   :: Text,
-        _propValue  :: Text,
-        _propOwn    :: Maybe Bool
-    } deriving (Eq, Show)
-
-instance FromJSON Property where
-    parseJSON (Object v) =
-        Property <$> v .: "name"
-                 <*> v .: "value"
-                 <*> v .:? "own"
-
-
-
--- | Reference to the vcs roots
-data VcsRootsRef = VcsRootsRef {
-        _vcsRootsRefHref    :: Text
-    } deriving (Eq, Show)
-
-instance FromJSON VcsRootsRef where
-    parseJSON (Object v) =
-        VcsRootsRef <$> v .: "href"
-
-data VcsRoots = VcsRoots {
-       _vcsRootsId  :: Text,
-       _vcsRoots    :: [VcsRoot] 
-    } deriving (Eq, Show)
-
-instance FromJSON VcsRoots where
-    parseJSON (Object v) =
-        VcsRoots <$> v .: "id"
-                 <*> v .: "vcs-root"
-
-data VcsRoot = VcsRoot {
-        _vcsRootId  :: Text,
-        _vcsRootName:: Text,
-        _vcsRootHref:: Text
-    } deriving (Eq, Show)
-
-instance FromJSON VcsRoot where
-    parseJSON (Object v) =
-        VcsRoot <$> v .: "id"
-                <*> v .: "name"
-                <*> v .: "href"
 
 data SubProjectRefs = SubProjectRefs {
         _subProjectCount   :: Int,
@@ -139,7 +37,8 @@ data SubProjectRefs = SubProjectRefs {
 instance FromJSON SubProjectRefs where
     parseJSON (Object v) =
         SubProjectRefs <$> v .: "count"
-                    <*> v .:? "project"
+                       <*> v .:? "project"
+
 
 
 data ProjectRef = ProjectRef {
@@ -193,6 +92,41 @@ instance FromJSON Project where
 
 
 
+-------------------------------------------------------------------------------
+-- Build
+-------------------------------------------------------------------------------
+-- | Information on build runs
+data BuildRuns = BuildRuns {
+        _bTypesCount    :: Int,
+        _bTypes         :: [BuildRunRef]
+    } deriving (Eq, Show)
+
+instance FromJSON BuildRuns where
+    parseJSON (Object v) =
+        BuildRuns <$> v .: "count"
+                  <*> v .: "buildType"
+
+-- | Reference to a build type
+data BuildRunRef = BuildRunRef {
+        _buildRunRefId         :: Text,
+        _buildRunRefName       :: Text,
+        _buildRunRefProjectName:: Text,
+        _buildRunRefProjectId  :: Text,
+        _buildRunRefHref       :: Text,
+        _buildRunRefWebUrl     :: Text
+    } deriving (Eq, Show)
+
+instance FromJSON BuildRunRef where
+    parseJSON (Object v) =
+        BuildRunRef <$> v .: "id"
+                     <*> v .: "name"
+                     <*> v .: "projectName"
+                     <*> v .: "projectId"
+                     <*> v .: "href"
+                     <*> v .: "webUrl"
+
+
+
 data BuildRun = BuildRun {
        _buildRunId              :: Int,
        _buildRunTypeId          :: Text,
@@ -240,4 +174,90 @@ instance FromJSON BuildRun where
                     <*> v .: "artifacts"
                     <*> v .: "relatedIssues"
                     <*> v .: "statistics"
+
+data Templates = Templates {
+        _templatesCount     :: Int,
+        _templatesBuildRuns:: [BuildRunRef]
+    } deriving (Eq, Show)
+
+instance FromJSON Templates where
+    parseJSON (Object v) =
+        Templates <$> v .: "count"
+                  <*> v .: "buildType"
+
+
+
+-------------------------------------------------------------------------------
+-- VCS Root
+-------------------------------------------------------------------------------
+-- | Reference to the vcs roots
+data VcsRootsRef = VcsRootsRef {
+        _vcsRootsRefHref    :: Text
+    } deriving (Eq, Show)
+
+instance FromJSON VcsRootsRef where
+    parseJSON (Object v) =
+        VcsRootsRef <$> v .: "href"
+
+
+
+
+data VcsRoots = VcsRoots {
+       _vcsRootsId  :: Text,
+       _vcsRoots    :: [VcsRoot]
+    } deriving (Eq, Show)
+
+instance FromJSON VcsRoots where
+    parseJSON (Object v) =
+        VcsRoots <$> v .: "id"
+                 <*> v .: "vcs-root"
+
+
+
+data VcsRoot = VcsRoot {
+        _vcsRootId  :: Text,
+        _vcsRootName:: Text,
+        _vcsRootHref:: Text
+    } deriving (Eq, Show)
+
+instance FromJSON VcsRoot where
+    parseJSON (Object v) =
+        VcsRoot <$> v .: "id"
+                <*> v .: "name"
+                <*> v .: "href"
+
+-------------------------------------------------------------------------------
+-- Other
+-------------------------------------------------------------------------------
+
+-- | Reference to a parameter
+data ParametersRef = ParametersRef {
+        _paramsRefCount      :: Int,
+        _paramsRefHref       :: Text,
+        _paramsRefProperties :: [Property]
+    } deriving (Eq, Show)
+
+instance FromJSON ParametersRef where
+    parseJSON (Object v) =
+        ParametersRef <$> v .: "count"
+                      <*> v .: "href"
+                      <*> v .: "property"
+
+
+
+type Parameters = [Property]
+
+-- | A build property
+data Property = Property {
+        _propName   :: Text,
+        _propValue  :: Text,
+        _propOwn    :: Maybe Bool
+    } deriving (Eq, Show)
+
+instance FromJSON Property where
+    parseJSON (Object v) =
+        Property <$> v .: "name"
+                 <*> v .: "value"
+                 <*> v .:? "own"
+
 
