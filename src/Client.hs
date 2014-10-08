@@ -6,8 +6,6 @@
 module Client where
 
 import Control.Applicative
-import Control.Lens.Combinators
-import Control.Lens.Operators
 import Control.Monad
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -17,11 +15,11 @@ import Data.Aeson
 import Data.Aeson.Lens
 
 -- applyBasicAuth expects a strict ByteString
-import Data.ByteString.Lazy.Char8 hiding (filter)
+import Data.ByteString.Lazy.Char8 hiding (filter, foldl)
 
 import qualified Data.ByteString.Char8 as BC
 import Data.Maybe
-import Data.Text as T
+import Data.Text as T hiding (foldl)
 import Network.HTTP.Conduit
 import System.Environment
 
@@ -75,20 +73,45 @@ requestBuilder endpoint httpMethod = apibase >>=
           acceptJson :: Request -> Request
           acceptJson req =
             req { requestHeaders = [("Accept", "application/json")] }
+
 --------------------------------------------------------------------------------
 -- Response
 --------------------------------------------------------------------------------
 
 class Reference a b where
-    follow :: ( MonadIO m, MonadThrow m, MonadBaseControl IO m ) =>
-        a -> m (Either String b)
+    follow :: ( MonadBaseControl IO m, MonadIO m, MonadThrow m ) =>
+        a -> m b
 
+-- Only use GET for now for all follows
 
-instance Reference ParentProjectRef Project where
-    follow ppr = liftM ( eitherDecode . responseBody ) $
-        makeRequest (APIRequestGet $ _pprHref ppr) >>= getResponse
+instance Reference ParentProjectRef ( Either String Project ) where
+    follow = follow' _pprHref
 
+instance Reference BuildRunRef ( Either String BuildRun ) where
+    follow = follow' _buildRunRefHref
 
+instance Reference ParametersRef ( Either String Parameters ) where
+    follow = follow' _paramsRefHref
+
+instance Reference VcsRootsRef ( Either String VcsRoots ) where
+    follow = follow' _vcsRootsRefHref
+
+instance Reference ProjectRef ( Either String Project ) where
+    follow = follow' _projectRefHref
+
+instance Reference SubProjectRefs [Either String Project] where
+    follow spr
+        | _subProjectRefs spr == Nothing = return []
+        | otherwise = mapM (\r -> follow' _projectRefHref r) $ fromJust subProjRefs
+        where
+            subProjRefs :: Maybe [ProjectRef]
+            subProjRefs = _subProjectRefs spr
+
+-- | Apply __f__ to __ref__ and request
+follow' :: ( MonadBaseControl IO m, MonadIO m, MonadThrow m, FromJSON b ) =>
+    ( a -> Text ) -> a -> m (Either String b)
+follow' f ref =  liftM ( eitherDecode . responseBody ) $
+    makeRequest (APIRequestGet $ f ref) >>= getResponse
 
 
 -- | Run a request.
@@ -100,16 +123,6 @@ getResponse req = withManager $ \manager -> do
 
 
 -- | Some hacking around....
-projects ::
-    ( MonadIO m, MonadThrow m, MonadBaseControl IO m ) => m ( Maybe Array )
-projects = liftM ( (\x -> x ^? key "project" . _Array) . responseBody ) $
-        makeRequest (APIRequestGet "/httpAuth/app/rest/projects") >>= getResponse
-
-project :: ( MonadIO m, MonadThrow m, MonadBaseControl IO m ) =>
-    Value -> m ( Maybe Object )
-project projectUrl = liftM (\x -> fromJust x ^? ix 0 . _Object) projects
-
-
 --------------------------------------------------------------------------------
 -- Configuration
 --------------------------------------------------------------------------------
