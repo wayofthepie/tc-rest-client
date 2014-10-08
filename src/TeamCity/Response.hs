@@ -16,7 +16,7 @@ import Data.Aeson
 import Data.Aeson.Lens
 import Data.ByteString.Lazy.Char8 hiding (map, pack, zipWith)
 import Data.Maybe
-import Data.Text hiding (foldl, map, zipWith)
+import Data.Text as T hiding (foldl, map, zipWith)
 import GHC.Generics
 import Network.HTTP.Conduit
 
@@ -64,6 +64,14 @@ follow' f ref =  liftM ( eitherDecode . responseBody ) $
     mkRequest (APIRequestGet $ f ref) >>= getResponse
 
 
+-- | Convenience function to call an endpoint.
+--
+-- TODO : Really have to think about how to model calls, especially seeing
+-- as the base of most (all?) API calls is /httpAuth/app/rest/.
+callep :: ( MonadBaseControl IO m,  MonadIO m, MonadThrow m ) =>
+    Text -> m ( Response ByteString )
+callep ep = getResponse =<< mkRequest (APIRequestGet $ T.append "/httpAuth/app/rest/" ep)
+
 -- | Run a request.
 getResponse ::
     ( MonadIO m, MonadBaseControl IO m ) => Request -> m ( Response ByteString )
@@ -75,27 +83,33 @@ getResponse req = withManager $ \manager -> do
 data Projects = Projects {
         count   :: Int,
         project :: [Object]
-    } deriving (Eq, Show, Generic) 
+    } deriving (Eq, Show, Generic)
 
 instance FromJSON Projects
 
-        
+
 -- | Get a list of project names and their location.
 -- This method has a contract with the API in that the API will always
 -- return __String__ values in the data this method asks for.
-
+--
 -- TODO: There must be a way of combining lenses to get the names and hrefs
--- simultaniously.
-listProjects :: 
+-- simultaneously.
+listProjects ::
     ( MonadBaseControl IO m, MonadIO m, MonadThrow m ) => m [(Text, Text)]
-listProjects = 
-    let extractText (String x) = x        
+listProjects =
+    let extractText (String x) = x
         names json      = json ^.. key "project" . values . key "href"
         hrefs json      = json ^.. key "project" . values . key "name"
         nameRefs json   = zipWith (,) (names json) (hrefs json)
-        convert         = map (mapTuple extractText) 
-    in liftM (convert . nameRefs . responseBody) $
-        getResponse =<< mkRequest (APIRequestGet $ "/httpAuth/app/rest/projects") 
+        convert         = map (mapTuple extractText)
+    in liftM (convert . nameRefs . responseBody) $ callep "projects"
+
+
+-- | Get a project by id.
+getProjectById :: ( MonadBaseControl IO m, MonadIO m, MonadThrow m ) =>
+    Text -> m ( Either String Project )
+getProjectById pid = liftM (eitherDecode . responseBody) $
+    callep $ T.append "projects/id:" pid
 
 
 -- | Map a function on both elements of a tuple
