@@ -45,17 +45,17 @@ data APIRequest  =
 
 
 -- | Build a request of the specified APIRequest type.
-makeRequest :: (MonadIO m, MonadThrow m) => APIRequest -> m Request
-makeRequest (APIRequestPost endpoint) = requestBuilder endpoint postReq
+mkRequest :: (MonadIO m, MonadThrow m) => APIRequest -> m Request
+mkRequest (APIRequestPost endpoint) = requestBuilder endpoint postReq
     where postReq req = req { method = "POST" }
 
-makeRequest (APIRequestGet endpoint) = requestBuilder endpoint getReq
+mkRequest (APIRequestGet endpoint) = requestBuilder endpoint getReq
     where getReq req = req { method = "GET" }
 
-makeRequest (APIRequestPut endpoint) = requestBuilder endpoint putReq
+mkRequest (APIRequestPut endpoint) = requestBuilder endpoint putReq
     where putReq req = req { method = "PUT" }
 
-makeRequest (APIRequestDelete endpoint) = requestBuilder endpoint deleteReq
+mkRequest (APIRequestDelete endpoint) = requestBuilder endpoint deleteReq
     where deleteReq req = req { method = "DELETE" }
 
 
@@ -114,7 +114,7 @@ instance Reference SubProjectRefs [Either String Project] where
 follow' :: ( MonadBaseControl IO m, MonadIO m, MonadThrow m, FromJSON b ) =>
     ( a -> Text ) -> a -> m (Either String b)
 follow' f ref =  liftM ( eitherDecode . responseBody ) $
-    makeRequest (APIRequestGet $ f ref) >>= getResponse
+    mkRequest (APIRequestGet $ f ref) >>= getResponse
 
 
 -- | Run a request.
@@ -140,7 +140,8 @@ tcCredentials = liftIO $ do
     pass <- getEnv "TEAMCITY_PASSWORD"
     return $ (user, pass)
 
--- Base url for all API calls.
+
+-- | Base url for all API calls.
 -- Assumes http. Retrieves the hostname (or IP address)
 -- from an environment variable called "TEAMCITY_HOST".
 apibase :: MonadIO m => m String
